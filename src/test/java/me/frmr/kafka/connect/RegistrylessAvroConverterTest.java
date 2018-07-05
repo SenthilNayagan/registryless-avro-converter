@@ -188,4 +188,44 @@ class RegistrylessAvroConverterTest {
     assertEquals("Beamer", dogStruct.getString("name"));
     assertEquals("Border Collie", dogStruct.getString("breed"));
   }
+  
+  @Test
+  void toConnectDataKeyValueAsString() throws IOException {
+	    InputStream userDataStream = this.getClass().getClassLoader().getResourceAsStream("data/binary/users.avro");
+	    byte[] userData = IOUtils.toByteArray(userDataStream);
+
+	    RegistrylessAvroConverter sut = new RegistrylessAvroConverter();
+	    Map<String, Object> settings = new HashMap<String, Object>();
+	    settings.put("flatten.delimiter", "|");
+	    sut.configure(settings, false);
+
+	    SchemaAndValue sav = sut.toConnectData("test_topic", userData);
+	    
+	    Schema userSchema = sav.schema();
+	    assertEquals(Schema.Type.STRUCT, userSchema.type());
+	    assertEquals(Schema.Type.STRING, userSchema.field("fkey").schema().type());
+	    
+	    Struct userStruct = (Struct)sav.value();
+	    assertEquals("Ben|7|red", userStruct.getString("fkey"));
+  }
+  
+  @Test
+  void toConnectDataKeyValueAsStringWithNull() throws IOException {
+	    InputStream userDataStream = this.getClass().getClassLoader().getResourceAsStream("data/binary/users_with_null.avro");
+	    byte[] userData = IOUtils.toByteArray(userDataStream);
+
+	    RegistrylessAvroConverter sut = new RegistrylessAvroConverter();
+	    Map<String, Object> settings = new HashMap<String, Object>();
+	    settings.put("flatten.delimiter", "|");
+	    sut.configure(settings, false);
+
+	    SchemaAndValue sav = sut.toConnectData("test_topic", userData);
+	    
+	    Schema userSchema = sav.schema();
+	    assertEquals(Schema.Type.STRUCT, userSchema.type());
+	    assertEquals(Schema.Type.STRING, userSchema.field("fkey").schema().type());
+	    
+	    Struct userStruct = (Struct)sav.value();
+	    assertEquals("Alyssa||white", userStruct.getString("fkey"));
+  }  
 }

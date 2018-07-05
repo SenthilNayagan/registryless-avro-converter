@@ -20,6 +20,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.ByteArrayOutputStream;
 import java.util.Map;
+import java.util.ListIterator;
+import java.util.Objects;
 import org.apache.avro.SchemaParseException;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
@@ -30,8 +32,11 @@ import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.file.SeekableByteArrayInput;
+import org.apache.kafka.connect.data.Field;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
+import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.storage.Converter;
 import org.slf4j.Logger;
@@ -54,6 +59,9 @@ public class RegistrylessAvroConverter implements Converter {
   private org.apache.avro.Schema avroSchema = null;
   private Schema connectSchema = null;
   private AvroData avroDataHelper = null;
+  private SchemaAndValue sav = null;
+  private Struct connectStruct = null;
+  private String flattenDelimiter = null;
 
   @Override
   public void configure(Map<String, ?> configs, boolean isKey) {
@@ -62,6 +70,7 @@ public class RegistrylessAvroConverter implements Converter {
     }
 
     avroDataHelper = new AvroData(schemaCacheSize);
+    flattenDelimiter = (String) configs.get("flatten.delimiter");
 
     if (configs.get("schema.path") instanceof String) {
       String avroSchemaPath = (String) configs.get("schema.path");
@@ -131,12 +140,47 @@ public class RegistrylessAvroConverter implements Converter {
       }
 
       if (avroSchema != null) {
-        return avroDataHelper.toConnectData(avroSchema, instance);
+    	  sav = avroDataHelper.toConnectData(avroSchema, instance);
       } else {
-        return avroDataHelper.toConnectData(instance.getSchema(), instance);
+    	  sav = avroDataHelper.toConnectData(instance.getSchema(), instance);
       }
+
+      if (flattenDelimiter != null && !flattenDelimiter.isEmpty()) {
+          String allValues = this.KeyValuePairsAsString(sav, flattenDelimiter);
+    	  connectSchema = SchemaBuilder.struct().name("flatten").field("fkey", Schema.STRING_SCHEMA).build();
+    	  connectStruct = new Struct(connectSchema);
+    	  connectStruct.put("fkey", allValues);
+    	  return new SchemaAndValue(connectSchema, connectStruct);
+      }
+      else {
+    	  return sav;
+      }      
     } catch (IOException ioe) {
       throw new DataException("Failed to deserialize Avro data from topic %s :".format(topic), ioe);
     }
   }
+  
+  /**
+   * Converts the key-value pairs as delimited string
+   * 
+   * @param sav SchemaAndValue object
+   * @param flattenDelimiter Delimiter to be used
+   * @return Delimited string
+   */
+  private String KeyValuePairsAsString(SchemaAndValue sav, String flattenDelimiter) {
+	  Schema savSchema = sav.schema();
+	  Struct savStruct = (Struct)sav.value();
+	  
+	  StringBuilder sb = new StringBuilder();
+	  ListIterator<Field> litr = null;
+	  litr = savSchema.fields().listIterator();
+
+	  while (litr.hasNext()) {
+		sb.append(Objects.toString(savStruct.get(litr.next()), "")); // Handles null value as well
+		sb.append(flattenDelimiter);
+	  }
+	  sb.setLength(sb.length() - 1); // Removes the last delimiter
+	  String allValues = Objects.toString(sb, "");
+	  return allValues;
+  }  
 }
