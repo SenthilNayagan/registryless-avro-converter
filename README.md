@@ -69,7 +69,7 @@ value.converter.flatten.delimiter=|
 
 **Step 2:**
 
-Use Simple Message Transformation (STM) to extract the entire delimited string as shown below:
+In your connect properties file, use Simple Message Transformation (STM) to extract the entire delimited string as shown below:
 
 ```
 transforms=ExtractValues
