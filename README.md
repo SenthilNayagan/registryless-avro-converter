@@ -50,6 +50,32 @@ value.converter=me.frmr.kafka.connect.RegistrylessAvroConverter
 value.converter.schema.path=/path/to/schema/file.avsc
 ```
 
+### Convert Key-Value Pairs as Delimited String
+
+**Step 1:**
+
+First, convert the key-value pairs as delimited string using **flatten.delimiter** property as shown below: 
+
+```
+key.converter=com.cigna.bigdata.kafka.connect.AvroConverter
+value.converter=com.cigna.bigdata.kafka.connect.AvroConverter
+value.converter.flatten.delimiter=|
+```
+
+**Without flatten.delimiter:** Struct{name=Beamer,breed=Border Collie}}
+
+**With flatten.delimiter:** Struct{fkey=Beamer|Border Collie}
+
+
+**Step 2:**
+
+Use Simple Message Transformation (STM) to extract the entire delimited string as shown below:
+
+```
+transforms=ExtractValues
+transforms.ExtractValues.type=org.apache.kafka.connect.transforms.ExtractField$Value
+transforms.ExtractValues.field=fkey
+
 ## Building the Converter
 
 This converter uses Gradle. Building the project is as simple as:
