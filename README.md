@@ -75,6 +75,7 @@ Use Simple Message Transformation (STM) to extract the entire delimited string a
 transforms=ExtractValues
 transforms.ExtractValues.type=org.apache.kafka.connect.transforms.ExtractField$Value
 transforms.ExtractValues.field=fkey
+```
 
 ## Building the Converter
 
